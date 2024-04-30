@@ -90,7 +90,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs)
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
             if phase == 'val':
-                val_acc_history.append(epoch_acc)
+                val_acc_history.append(epoch_acc.item())
 
         print()
 
@@ -176,7 +176,7 @@ def lr_experiments(lrs):
         results["lr_main"].append(lr_main)
         results["lr_fc"].append(lr_fc)
         results["scheduler_type"].append(scheduler_type)
-        results["final_acc"].append(val_acc_hist[-1].item())
+        results["final_acc"].append(val_acc_hist)
         i += 1
 
     return results
@@ -238,7 +238,7 @@ def run_layer_fine_tuning_experiments():
         print(f'Experiment with layers {experiment["layers_to_tune"]} completed.')
         i += 1
         ft_results["layers_to_tune"].append(experiment["layers_to_tune"])
-        ft_results["final_acc"].append(acc_hist[-1].item())
+        ft_results["final_acc"].append(acc_hist)
 
     return ft_results
 
@@ -274,7 +274,7 @@ def data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_f
         trained_model, val_acc_hist = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler=None,
                                                   num_epochs=num_epochs)
         results["augmentation_type"].append(augmentation_type)
-        results["final_acc"].append(val_acc_hist[-1].item())
+        results["final_acc"].append(val_acc_hist)
         i += 1
     return results
 
@@ -323,10 +323,10 @@ if __name__ == '__main__':
     batch_size = 128
 
     # Number of epochs to train for
-    num_epochs = 1
+    num_epochs = 8
 
     # Percentage of the total dataset
-    subset_percentage = 0.001
+    subset_percentage = 0.1
 
     # Flag for feature extracting.
     # When False, we finetune the whole model, when True we only update the reshaped layer params.
@@ -384,15 +384,15 @@ if __name__ == '__main__':
         # (0.0001, 0.01, "cosine"),
         # (0.001, 0.01, "plateau"),
         # (0.001, 0.01, "cycle"),
-        # (0.001, 0.0001, "step"),
-        # (0.0001, 0.0001, "exp"),
+        (0.001, 0.0001, "step"),
+        (0.0001, 0.0001, "exp")
         # (0.0001, 0.0001, "cosine"),
         # (0.001, 0.0001, "plateau"),
         # (0.001, 0.0001, "cycle")
     ]
 
     results = lr_experiments(learning_rates_schedulers)
-    print(results)
+    # print(results)
     results_json = json.dumps(results)
     write_json_to_gcs('resnet_18_experiment_test_30_4', 'lr_results.json', results_json)
 
