@@ -256,14 +256,14 @@ def lr_experiments(lrs):
 learning_rates_schedulers = [
     (0.001, 0.01, "step"),
     (0.0001, 0.01, "exp"),
-    (0.0001, 0.01, "cosine"),
-    (0.001, 0.01, "plateau"),
-    (0.001, 0.01, "cycle"),
-    (0.001, 0.0001, "step"),
-    (0.0001, 0.0001, "exp"),
-    (0.0001, 0.0001, "cosine"),
-    (0.001, 0.0001, "plateau"),
-    (0.001, 0.0001, "cycle")
+    # (0.0001, 0.01, "cosine"),
+    # (0.001, 0.01, "plateau"),
+    # (0.001, 0.01, "cycle"),
+    # (0.001, 0.0001, "step"),
+    # (0.0001, 0.0001, "exp"),
+    # (0.0001, 0.0001, "cosine"),
+    # (0.001, 0.0001, "plateau"),
+    # (0.001, 0.0001, "cycle")
 ]
 
 results = lr_experiments(learning_rates_schedulers)
