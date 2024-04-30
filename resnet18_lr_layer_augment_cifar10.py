@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 import time
 import os
 import copy
-# from gcs_functions import *
+from gcs_functions import *
 from google.cloud import storage
 import json
 
 
-# client = storage.Client()
-# write_to_storage('resnet_18_experiment_test_29_4', 'beginning_log.txt', 'Beginning of the experiment')
+client = storage.Client()
+write_to_storage('resnet_18_experiment_test_30_4', 'beginning_log.txt', 'Beginning of the experiment')
 
 
 def set_parameter_requires_grad(model, feature_extracting):
@@ -394,12 +394,12 @@ if __name__ == '__main__':
     results = lr_experiments(learning_rates_schedulers)
     print(results)
     results_json = json.dumps(results)
-    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'lr_results.json', results_json)
+    write_json_to_gcs('resnet_18_experiment_test_30_4', 'lr_results.json', results_json)
 
     # Fine Tuning Layers Experiment
     ft_results = run_layer_fine_tuning_experiments()
     ft_results_json = json.dumps(ft_results)
-    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'ft_results.json', ft_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_30_4', 'ft_results.json', ft_results_json)
 
     # Data Augmentation Experiments
     lr_main = 0.001
@@ -408,4 +408,4 @@ if __name__ == '__main__':
     data_augmentation_results = data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_fc)
     # print(data_augmentation_results)
     data_augmentation_results_json = json.dumps(data_augmentation_results)
-    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'data_augmentation_results.json', data_augmentation_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_30_4', 'data_augmentation_results.json', data_augmentation_results_json)
