@@ -12,37 +12,13 @@ import matplotlib.pyplot as plt
 import time
 import os
 import copy
-from gcs_functions import *
+# from gcs_functions import *
 from google.cloud import storage
 import json
 
-client = storage.Client()
 
-write_to_storage('resnet_18_experiment_test_29_4', 'beginning_log.txt', 'Beginning of the experiment')
-
-# print("PyTorch Version: ", torch.__version__)
-# print("Torchvision Version: ", torchvision.__version__)
-
-"""#### Set General Parameters"""
-
-# Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
-model_name = "resnet"
-
-# Number of classes in the dataset
-num_classes = 10
-
-# Batch size for training
-batch_size = 128
-
-# Number of epochs to train for
-num_epochs = 8
-
-# Percentage of the total dataset
-subset_percentage = 0.001
-
-# Flag for feature extracting.
-# When False, we finetune the whole model, when True we only update the reshaped layer params.
-feature_extract = False
+# client = storage.Client()
+# write_to_storage('resnet_18_experiment_test_29_4', 'beginning_log.txt', 'Beginning of the experiment')
 
 
 def set_parameter_requires_grad(model, feature_extracting):
@@ -127,53 +103,6 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs)
     return model, val_acc_history
 
 
-"""#### Load Data"""
-
-mean, std = [0.4914, 0.4822, 0.4465], [0.247, 0.243, 0.261]
-# These values are mostly used by researchers as found to very useful in fast convergence
-img_size = 224
-crop_size = 224
-
-transform = transforms.Compose(
-    [
-        transforms.Resize(img_size),  # , interpolation=torchvision.transforms.InterpolationMode.BICUBIC),
-        # transforms.CenterCrop(crop_size),
-        transforms.RandomRotation(20),
-        transforms.RandomHorizontalFlip(0.1),
-        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-        transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.1),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-        transforms.RandomErasing(p=0.75, scale=(0.02, 0.1), value=1.0, inplace=False)])
-
-transformTest = transforms.Compose(
-    [
-        transforms.Resize((img_size, img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std)])
-
-full_dataset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                            download=True, transform=transform)
-subset_size = int(subset_percentage * len(full_dataset))
-subset_indices = torch.randperm(len(full_dataset))[:subset_size]
-subset_dataset = torch.utils.data.Subset(full_dataset, subset_indices)
-trainloader = torch.utils.data.DataLoader(subset_dataset, batch_size=batch_size,
-                                          shuffle=True, num_workers=2)
-
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transformTest)
-subset_size_test = int(subset_percentage * len(testset))
-subset_indices = torch.randperm(len(testset))[:subset_size_test]
-subset_testset = torch.utils.data.Subset(testset, subset_indices)
-testloader = torch.utils.data.DataLoader(subset_testset, batch_size=batch_size,
-                                         shuffle=False, num_workers=2)
-
-dataloaders_dict = {'train': trainloader, 'val': testloader}
-
-# classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
 def initialize_model(num_classes, feature_extract, use_pretrained=True):
     # Initialize these variables which will be set in this if statement. Each of these variables is model specific.
     model_ft = None
@@ -247,28 +176,11 @@ def lr_experiments(lrs):
         results["lr_main"].append(lr_main)
         results["lr_fc"].append(lr_fc)
         results["scheduler_type"].append(scheduler_type)
-        results["final_acc"].append(val_acc_hist[-1])
+        results["final_acc"].append(val_acc_hist[-1].item())
         i += 1
 
     return results
 
-
-learning_rates_schedulers = [
-    (0.001, 0.01, "step"),
-    (0.0001, 0.01, "exp"),
-    # (0.0001, 0.01, "cosine"),
-    # (0.001, 0.01, "plateau"),
-    # (0.001, 0.01, "cycle"),
-    # (0.001, 0.0001, "step"),
-    # (0.0001, 0.0001, "exp"),
-    # (0.0001, 0.0001, "cosine"),
-    # (0.001, 0.0001, "plateau"),
-    # (0.001, 0.0001, "cycle")
-]
-
-results = lr_experiments(learning_rates_schedulers)
-results_json = json.dumps(results)
-write_json_to_gcs('resnet_18_experiment_test_29_4', 'lr_results.json', results_json)
 
 """#### Fine Tuning Layers Experiment"""
 
@@ -321,18 +233,15 @@ def run_layer_fine_tuning_experiments():
 
         # Train and evaluate
         print("Experiment {} with layer number {} tuned".format(i, str(experiment["layers_to_tune"])))
-        model_ft, acc_hist = train_model(model, dataloaders_dict, criterion, optimizer_ft, scheduler=None, num_epochs=num_epochs)
+        model_ft, acc_hist = train_model(model, dataloaders_dict, criterion, optimizer_ft, scheduler=None,
+                                         num_epochs=num_epochs)
         print(f'Experiment with layers {experiment["layers_to_tune"]} completed.')
         i += 1
         ft_results["layers_to_tune"].append(experiment["layers_to_tune"])
-        ft_results["final_acc"].append(acc_hist[-1])
+        ft_results["final_acc"].append(acc_hist[-1].item())
 
     return ft_results
 
-
-ft_results = run_layer_fine_tuning_experiments()
-ft_results_json = json.dumps(ft_results)
-write_json_to_gcs('resnet_18_experiment_test_29_4', 'ft_results.json', ft_results_json)
 
 """#### Data Augmentation Experiments"""
 
@@ -365,7 +274,7 @@ def data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_f
         trained_model, val_acc_hist = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler=None,
                                                   num_epochs=num_epochs)
         results["augmentation_type"].append(augmentation_type)
-        results["final_acc"].append(val_acc_hist[-1])
+        results["final_acc"].append(val_acc_hist[-1].item())
         i += 1
     return results
 
@@ -403,11 +312,100 @@ def get_transform(augmentation_type):
         raise ValueError("Unsupported augmentation type")
 
 
-# Define learning rates
-lr_main = 0.001
-lr_fc = 0.001
-augmentation_types = ["flip", "rotation", "crops", "scaling"]
-data_augmentation_results = data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_fc)
-# print(data_augmentation_results)
-data_augmentation_results_json = json.dumps(data_augmentation_results)
-write_json_to_gcs('resnet_18_experiment_test_29_4', 'data_augmentation_results.json', data_augmentation_results_json)
+if __name__ == '__main__':
+    # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
+    model_name = "resnet"
+
+    # Number of classes in the dataset
+    num_classes = 10
+
+    # Batch size for training
+    batch_size = 128
+
+    # Number of epochs to train for
+    num_epochs = 1
+
+    # Percentage of the total dataset
+    subset_percentage = 0.001
+
+    # Flag for feature extracting.
+    # When False, we finetune the whole model, when True we only update the reshaped layer params.
+    feature_extract = False
+
+    mean, std = [0.4914, 0.4822, 0.4465], [0.247, 0.243, 0.261]
+    # These values are mostly used by researchers as found to very useful in fast convergence
+    img_size = 224
+    crop_size = 224
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(img_size),  # , interpolation=torchvision.transforms.InterpolationMode.BICUBIC),
+            # transforms.CenterCrop(crop_size),
+            transforms.RandomRotation(20),
+            transforms.RandomHorizontalFlip(0.1),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+            transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+            transforms.RandomErasing(p=0.75, scale=(0.02, 0.1), value=1.0, inplace=False)])
+
+    transformTest = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)])
+
+    full_dataset = torchvision.datasets.CIFAR10(root='./data', train=True,
+                                                download=True, transform=transform)
+    subset_size = int(subset_percentage * len(full_dataset))
+    subset_indices = torch.randperm(len(full_dataset))[:subset_size]
+    subset_dataset = torch.utils.data.Subset(full_dataset, subset_indices)
+    trainloader = torch.utils.data.DataLoader(subset_dataset, batch_size=batch_size,
+                                              shuffle=True, num_workers=2)
+
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                           download=True, transform=transformTest)
+    subset_size_test = int(subset_percentage * len(testset))
+    subset_indices = torch.randperm(len(testset))[:subset_size_test]
+    subset_testset = torch.utils.data.Subset(testset, subset_indices)
+    testloader = torch.utils.data.DataLoader(subset_testset, batch_size=batch_size,
+                                             shuffle=False, num_workers=2)
+
+    dataloaders_dict = {'train': trainloader, 'val': testloader}
+
+    # classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # Learning Rate Experiments
+
+    learning_rates_schedulers = [
+        (0.001, 0.01, "step"),
+        (0.0001, 0.01, "exp"),
+        # (0.0001, 0.01, "cosine"),
+        # (0.001, 0.01, "plateau"),
+        # (0.001, 0.01, "cycle"),
+        # (0.001, 0.0001, "step"),
+        # (0.0001, 0.0001, "exp"),
+        # (0.0001, 0.0001, "cosine"),
+        # (0.001, 0.0001, "plateau"),
+        # (0.001, 0.0001, "cycle")
+    ]
+
+    results = lr_experiments(learning_rates_schedulers)
+    print(results)
+    results_json = json.dumps(results)
+    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'lr_results.json', results_json)
+
+    # Fine Tuning Layers Experiment
+    ft_results = run_layer_fine_tuning_experiments()
+    ft_results_json = json.dumps(ft_results)
+    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'ft_results.json', ft_results_json)
+
+    # Data Augmentation Experiments
+    lr_main = 0.001
+    lr_fc = 0.001
+    augmentation_types = ["flip", "rotation", "crops", "scaling"]
+    data_augmentation_results = data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_fc)
+    # print(data_augmentation_results)
+    data_augmentation_results_json = json.dumps(data_augmentation_results)
+    # write_json_to_gcs('resnet_18_experiment_test_29_4', 'data_augmentation_results.json', data_augmentation_results_json)
