@@ -1,20 +1,21 @@
 
 # need to install this : !pip install google-cloud-storage
 
-from google.colab import files
+# from google.colab import files
 
 # This will prompt you to select the JSON key file through the file picker
-uploaded = files.upload()
+# uploaded = files.upload()
 
 # After uploading, you can check the filename of the uploaded file
-print("Uploaded file(s):", list(uploaded.keys()))
+# print("Uploaded file(s):", list(uploaded.keys()))
 
 import os
-from google.colab import files
+import json
+# from google.colab import files
 # uploaded = files.upload()
 
 # Assuming the filename of your key is 'service-account-file.json'
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'xenon-lantern-421513-f44447d18aae.json'
+# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'xenon-lantern-421513-f44447d18aae.json'
 
 from google.cloud import storage
 
@@ -23,8 +24,9 @@ client = storage.Client()
 # Now you can interact with Google Cloud Storage using this client
 
 # Lists all the buckets
-buckets = list(client.list_buckets())
-print(buckets)
+# buckets = list(client.list_buckets())
+# print(buckets)
+
 
 def read_from_storage(bucket_name, file_name):
     """Reads content from a file in Google Cloud Storage.
@@ -52,8 +54,8 @@ def read_from_storage(bucket_name, file_name):
     return content.decode('utf-8')
 
 # Example usage:
-content = read_from_storage('experimentresults', 'new-file.txt')
-print(content)
+# content = read_from_storage('experimentresults', 'new-file.txt')
+# print(content)
 
 def write_to_storage(bucket_name, file_name, data):
     """Writes data to a file in Google Cloud Storage.
@@ -78,8 +80,10 @@ def write_to_storage(bucket_name, file_name, data):
     # Upload the data
     blob.upload_from_string(data)
 
+
 # Example usage:
-write_to_storage('experimentresults', 'new-file.txt', 'Hello, World!')
+# write_to_storage('experimentresults', 'new-file.txt', 'Hello, World!')
+
 
 def create_and_write_file(file_name, text_string):
     """
@@ -98,7 +102,8 @@ def create_and_write_file(file_name, text_string):
         file.write(text_string)
 
 # Example usage:
-create_and_write_file('example.txt', 'Hello, this is a sample text.')
+# create_and_write_file('example.txt', 'Hello, this is a sample text.')
+
 
 def write_json_to_gcs(bucket_name, destination_blob_name, data):
     """
@@ -124,6 +129,7 @@ def write_json_to_gcs(bucket_name, destination_blob_name, data):
 
     # Optionally, remove the temporary file if not needed
     os.remove(temp_file)
+
 
 def read_json_from_gcs(bucket_name, source_blob_name):
     """
@@ -153,21 +159,22 @@ def read_json_from_gcs(bucket_name, source_blob_name):
 
     return data
 
-import json
 
-data = {
-    "name": "Example",
-    "age": 30,
-    "city": "New York"
-}
-
-# Convert the data to JSON format
-json_data = json.dumps(data)
-
-# Example usage:
-write_json_to_gcs('experimentresults', 'examplefile.json', json_data)
-
-# Example usage:
-data = read_json_from_gcs('experimentresults', 'examplefile.json')
-print(data)
+# import json
+#
+# data = {
+#     "name": "Example",
+#     "age": 30,
+#     "city": "New York"
+# }
+#
+# # Convert the data to JSON format
+# json_data = json.dumps(data)
+#
+# # Example usage:
+# write_json_to_gcs('experimentresults', 'examplefile.json', json_data)
+#
+# # Example usage:
+# data = read_json_from_gcs('experimentresults', 'examplefile.json')
+# print(data)
 

@@ -1,0 +1,8 @@
+google-api-core==2.18.0
+google-auth==2.29.0
+google-cloud-core==2.4.1
+google-cloud-storage==2.16.0
+matplotlib==3.8.3
+numpy==1.26.4
+torch==2.2.2
+torchvision==0.17.2
