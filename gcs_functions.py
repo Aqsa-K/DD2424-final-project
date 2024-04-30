@@ -82,7 +82,7 @@ def write_to_storage(bucket_name, file_name, data):
 
 
 # Example usage:
-# write_to_storage('experimentresults', 'new-file.txt', 'Hello, World!')
+write_to_storage('experimentresults', 'new-file-1.txt', 'Hello, World!')
 
 
 def create_and_write_file(file_name, text_string):
