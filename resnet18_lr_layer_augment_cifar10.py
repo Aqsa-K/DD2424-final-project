@@ -1,5 +1,3 @@
-"""#### Import Libraries"""
-
 from __future__ import print_function
 from __future__ import division
 import torch
@@ -18,7 +16,7 @@ import json
 
 
 client = storage.Client()
-write_to_storage('resnet_18_experiment_test_30_4', 'beginning_log.txt', 'Beginning of the experiment')
+write_to_storage('resnet_18_experiment_test_1_5', 'beginning_log.txt', 'Beginning of the experiment')
 
 
 def set_parameter_requires_grad(model, feature_extracting):
@@ -33,7 +31,12 @@ def set_parameter_requires_grad(model, feature_extracting):
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs):
     since = time.time()
 
-    val_acc_history = []
+    metrics = {
+        'train_loss': [],
+        'val_loss': [],
+        'train_acc': [],
+        'val_acc': []
+    }
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -77,20 +80,29 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
-            if phase == 'train' and scheduler is not None:
-                scheduler.step()
-
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
+            if phase == 'train' and scheduler is not None:
+                if scheduler.__class__.__name__ == 'ReduceLROnPlateau':
+                    scheduler.step(epoch_loss)
+                else:
+                    scheduler.step()
+
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
-            # deep copy the model
+            # Store metrics
+            if phase == 'train':
+                metrics['train_loss'].append(epoch_loss)
+                metrics['train_acc'].append(epoch_acc.item())
+            if phase == 'val':
+                metrics['val_loss'].append(epoch_loss)
+                metrics['val_acc'].append(epoch_acc.item())
+
+            # Deep copy the model if best accuracy is achieved
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-            if phase == 'val':
-                val_acc_history.append(epoch_acc.item())
 
         print()
 
@@ -98,9 +110,9 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs)
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print('Best val Acc: {:4f}'.format(best_acc))
 
-    # load best model weights
+    # Load best model weights
     model.load_state_dict(best_model_wts)
-    return model, val_acc_history
+    return model, metrics
 
 
 def initialize_model(num_classes, feature_extract, use_pretrained=True):
@@ -164,19 +176,19 @@ def lr_experiments(lrs):
         elif scheduler_type == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2,
                                                                    threshold=0.0001, threshold_mode='rel', cooldown=0,
-                                                                   eps=1e-08)
+                                                                   eps=1e-04)
         elif scheduler_type == "cycle":
-            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.001, max_lr=0.1, step_size_up=50,
-                                                          step_size_down=50)
+            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.001, step_size_up=100,
+                                                          step_size_down=100, cycle_momentum=False)
         else:
             scheduler = None
 
-        trained_model, val_acc_hist = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler,
-                                                  num_epochs)
+        trained_model, metrics = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler,
+                                             num_epochs)
         results["lr_main"].append(lr_main)
         results["lr_fc"].append(lr_fc)
         results["scheduler_type"].append(scheduler_type)
-        results["final_acc"].append(val_acc_hist)
+        results["final_acc"].append(metrics)
         i += 1
 
     return results
@@ -228,17 +240,17 @@ def run_layer_fine_tuning_experiments():
     for experiment in experiments:
         model = get_model(num_classes, experiment["layers_to_tune"])
         params_to_update = get_params_to_update(model)
-        optimizer_ft = torch.optim.Adam(params_to_update, lr=0.001)
+        optimizer_ft = torch.optim.Adam(params_to_update, lr=0.0001)
         criterion = nn.CrossEntropyLoss()
 
         # Train and evaluate
         print("Experiment {} with layer number {} tuned".format(i, str(experiment["layers_to_tune"])))
-        model_ft, acc_hist = train_model(model, dataloaders_dict, criterion, optimizer_ft, scheduler=None,
-                                         num_epochs=num_epochs)
+        model_ft, metrics = train_model(model, dataloaders_dict, criterion, optimizer_ft, scheduler=None,
+                                        num_epochs=num_epochs)
         print(f'Experiment with layers {experiment["layers_to_tune"]} completed.')
         i += 1
         ft_results["layers_to_tune"].append(experiment["layers_to_tune"])
-        ft_results["final_acc"].append(acc_hist)
+        ft_results["final_acc"].append(metrics)
 
     return ft_results
 
@@ -246,7 +258,7 @@ def run_layer_fine_tuning_experiments():
 """#### Data Augmentation Experiments"""
 
 
-def data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_fc):
+def data_augmentation_experiments(testloader, num_classes, batch_size, sub_length, augmentation_types, lr_main, lr_fc):
     results = {
         "augmentation_type": [],
         "final_acc": []
@@ -264,17 +276,17 @@ def data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_f
         transform = get_transform(augmentation_type)
         full_dataset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                                     download=True, transform=transform)
-        subset_size = int(0.001 * len(full_dataset))
+        subset_size = int(sub_length * len(full_dataset))
         subset_indices = torch.randperm(len(full_dataset))[:subset_size]
         subset_dataset = torch.utils.data.Subset(full_dataset, subset_indices)
         trainloader = torch.utils.data.DataLoader(subset_dataset, batch_size=batch_size,
                                                   shuffle=True, num_workers=2)
         dataloaders_dict = {'train': trainloader, 'val': testloader}
 
-        trained_model, val_acc_hist = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler=None,
-                                                  num_epochs=num_epochs)
+        trained_model, metrics = train_model(model_ft, dataloaders_dict, criterion, optimizer, scheduler=None,
+                                             num_epochs=num_epochs)
         results["augmentation_type"].append(augmentation_type)
-        results["final_acc"].append(val_acc_hist)
+        results["final_acc"].append(metrics)
         i += 1
     return results
 
@@ -323,10 +335,10 @@ if __name__ == '__main__':
     batch_size = 128
 
     # Number of epochs to train for
-    num_epochs = 8
+    num_epochs = 10
 
     # Percentage of the total dataset
-    subset_percentage = 0.1
+    subset_percentage = 1.0
 
     # Flag for feature extracting.
     # When False, we finetune the whole model, when True we only update the reshaped layer params.
@@ -341,13 +353,14 @@ if __name__ == '__main__':
         [
             transforms.Resize(img_size),  # , interpolation=torchvision.transforms.InterpolationMode.BICUBIC),
             # transforms.CenterCrop(crop_size),
-            transforms.RandomRotation(20),
-            transforms.RandomHorizontalFlip(0.1),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-            transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.1),
+            # transforms.RandomRotation(20),
+            # transforms.RandomHorizontalFlip(0.1),
+            # transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+            # transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.1),
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-            transforms.RandomErasing(p=0.75, scale=(0.02, 0.1), value=1.0, inplace=False)])
+            transforms.Normalize(mean, std)
+            # transforms.RandomErasing(p=0.75, scale=(0.02, 0.1), value=1.0, inplace=False)
+        ])
 
     transformTest = transforms.Compose(
         [
@@ -379,33 +392,35 @@ if __name__ == '__main__':
     # Learning Rate Experiments
 
     learning_rates_schedulers = [
-        (0.001, 0.01, "step"),
+        (0.0001, 0.01, "step"),
         (0.0001, 0.01, "exp"),
-        # (0.0001, 0.01, "cosine"),
-        # (0.001, 0.01, "plateau"),
-        # (0.001, 0.01, "cycle"),
-        (0.001, 0.0001, "step"),
-        (0.0001, 0.0001, "exp")
-        # (0.0001, 0.0001, "cosine"),
-        # (0.001, 0.0001, "plateau"),
-        # (0.001, 0.0001, "cycle")
+        (0.0001, 0.01, "cosine"),
+        (0.0001, 0.01, "plateau"),
+        (0.0001, 0.01, "cycle"),
+        (0.0001, 0.0001, "step"),
+        (0.0001, 0.0001, "exp"),
+        (0.0001, 0.0001, "cosine"),
+        (0.0001, 0.0001, "plateau"),
+        (0.0001, 0.0001, "cycle")
     ]
 
+    # Learning Rate Experiments
     results = lr_experiments(learning_rates_schedulers)
     # print(results)
     results_json = json.dumps(results)
-    write_json_to_gcs('resnet_18_experiment_test_30_4', 'lr_results.json', results_json)
+    write_json_to_gcs('resnet_18_experiment_test_1_5', 'lr_results.json', results_json)
 
     # Fine Tuning Layers Experiment
     ft_results = run_layer_fine_tuning_experiments()
     ft_results_json = json.dumps(ft_results)
-    write_json_to_gcs('resnet_18_experiment_test_30_4', 'ft_results.json', ft_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_1_5', 'ft_results.json', ft_results_json)
 
     # Data Augmentation Experiments
-    lr_main = 0.001
-    lr_fc = 0.001
+    lr_main = 0.0001
+    lr_fc = 0.0001
     augmentation_types = ["flip", "rotation", "crops", "scaling"]
-    data_augmentation_results = data_augmentation_experiments(num_classes, augmentation_types, lr_main, lr_fc)
+    data_augmentation_results = data_augmentation_experiments(testloader, num_classes, batch_size, subset_percentage, augmentation_types, lr_main,
+                                                              lr_fc)
     # print(data_augmentation_results)
     data_augmentation_results_json = json.dumps(data_augmentation_results)
-    write_json_to_gcs('resnet_18_experiment_test_30_4', 'data_augmentation_results.json', data_augmentation_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_1_5', 'da_results.json', data_augmentation_results_json)
