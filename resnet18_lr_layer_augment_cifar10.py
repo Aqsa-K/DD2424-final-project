@@ -334,7 +334,7 @@ if __name__ == '__main__':
     num_classes = 10
 
     # Batch size for training
-    batch_size = 128
+    batch_size = 512
 
     # Number of epochs to train for
     num_epochs = 10
