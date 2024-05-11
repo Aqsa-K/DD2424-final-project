@@ -1,14 +1,3 @@
-
-# need to install this : !pip install google-cloud-storage
-
-# from google.colab import files
-
-# This will prompt you to select the JSON key file through the file picker
-# uploaded = files.upload()
-
-# After uploading, you can check the filename of the uploaded file
-# print("Uploaded file(s):", list(uploaded.keys()))
-
 import os
 import json
 # from google.colab import files

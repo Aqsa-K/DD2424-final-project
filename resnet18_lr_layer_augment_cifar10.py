@@ -16,7 +16,7 @@ import json
 
 
 client = storage.Client()
-write_to_storage('resnet_18_experiment_test_1_5', 'beginning_log.txt', 'Beginning of the experiment')
+write_to_storage('resnet_18_experiment_test_11_5', 'beginning_log.txt', 'Beginning of the experiment')
 
 
 def set_parameter_requires_grad(model, feature_extracting):
@@ -125,6 +125,7 @@ def initialize_model(num_classes, feature_extract, use_pretrained=True):
     num_ftrs = model_ft.fc.in_features
     model_ft.fc = nn.Linear(num_ftrs, num_classes)
     input_size = 224
+    model_ft = model_ft.to(device)
 
     return model_ft, input_size
 
@@ -214,6 +215,7 @@ def get_model(num_classes, layers_to_tune):
     # Replace the final fully connected layer (unfrozen)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_classes)  # CIFAR10 has 10 classes
+    model = model.to(device)
 
     return model
 
@@ -408,12 +410,12 @@ if __name__ == '__main__':
     results = lr_experiments(learning_rates_schedulers)
     # print(results)
     results_json = json.dumps(results)
-    write_json_to_gcs('resnet_18_experiment_test_1_5', 'lr_results.json', results_json)
+    write_json_to_gcs('resnet_18_experiment_test_11_5', 'lr_results.json', results_json)
 
     # Fine Tuning Layers Experiment
     ft_results = run_layer_fine_tuning_experiments()
     ft_results_json = json.dumps(ft_results)
-    write_json_to_gcs('resnet_18_experiment_test_1_5', 'ft_results.json', ft_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_11_5', 'ft_results.json', ft_results_json)
 
     # Data Augmentation Experiments
     lr_main = 0.0001
@@ -423,4 +425,4 @@ if __name__ == '__main__':
                                                               lr_fc)
     # print(data_augmentation_results)
     data_augmentation_results_json = json.dumps(data_augmentation_results)
-    write_json_to_gcs('resnet_18_experiment_test_1_5', 'da_results.json', data_augmentation_results_json)
+    write_json_to_gcs('resnet_18_experiment_test_11_5', 'da_results.json', data_augmentation_results_json)
