@@ -640,7 +640,7 @@ history = mae_model.fit(
 
 from google.cloud import storage
 
-def save_history_to_gcs(history_json):
+def save_history_to_gcs(history_json, blob_name):
     # Set up the client
     client = storage.Client()
     
@@ -651,12 +651,12 @@ def save_history_to_gcs(history_json):
     bucket = client.bucket(bucket_name)
     
     # Create a blob object for the file
-    blob = bucket.blob('history.json')
+    blob = bucket.blob(blob_name)
     
     # Upload the JSON string
     blob.upload_from_string(history_json, content_type='application/json')
     
-    print("History object saved to GCS")
+    print("Object saved to GCS")
 
 
 import json
@@ -664,4 +664,25 @@ import json
 # Convert the history.history dict to JSON
 history_dict = history.history
 history_json = json.dumps(history_dict)
-save_history_to_gcs(history_json)
+save_history_to_gcs(history_json, 'history.json')
+
+
+# Evaluate the model
+results = mae_model.evaluate(test_ds)
+print(results)
+
+# Create a dictionary to store the results
+results_dict = {
+    "loss": results[0],
+    "mae": results[1]
+}
+
+# Convert the dictionary to a JSON string
+results_json = json.dumps(results_dict, indent=4)
+
+save_history_to_gcs(results_json, 'results_json')
+
+# # Save the JSON string to a file
+# with open("evaluation_results.json", "w") as json_file:
+#     json_file.write(results_json)
+
