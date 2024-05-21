@@ -644,10 +644,10 @@ def save_history_to_gcs(history_json):
     client = storage.Client()
     
     # Specify your bucket name
-    bucket_name = 'your-bucket-name'
+    bucket_name = 'experiment_results_21_5_1818'
     
     # Create a bucket object
-    bucket = 'experiment_results123'
+    bucket = client.bucket(bucket_name)
     
     # Create a blob object for the file
     blob = bucket.blob('history.json')
