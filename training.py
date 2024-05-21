@@ -96,7 +96,6 @@ def get_test_augmentation_model():
     return model
 
 
-
 class Patches(layers.Layer):
     def __init__(self, patch_size=PATCH_SIZE, **kwargs):
         super().__init__(**kwargs)
