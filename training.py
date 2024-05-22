@@ -39,10 +39,10 @@ LAYER_NORM_EPS = 1e-6
 ENC_PROJECTION_DIM = 128
 DEC_PROJECTION_DIM = 64
 ENC_NUM_HEADS = 4
-ENC_LAYERS = 8
+ENC_LAYERS = 6
 DEC_NUM_HEADS = 4
 DEC_LAYERS = (
-    2  # The decoder is lightweight but should be reasonably deep for reconstruction.
+    4  # The decoder is lightweight but should be reasonably deep for reconstruction.
 )
 ENC_TRANSFORMER_UNITS = [
     ENC_PROJECTION_DIM * 2,
@@ -640,7 +640,7 @@ history = mae_model.fit(
 
 from google.cloud import storage
 
-DEST_FOLDER = "experiment1/"
+DEST_FOLDER = "experiment2/"
 
 def save_history_to_gcs(history_json, blob_name):
     # Set up the client
