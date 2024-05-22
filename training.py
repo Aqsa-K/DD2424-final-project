@@ -628,7 +628,7 @@ mae_model.compile(
 )
 history = mae_model.fit(
     train_ds,
-    epochs=2,
+    epochs=EPOCHS,
     validation_data=val_ds,
     callbacks=train_callbacks,
 )
