@@ -696,7 +696,7 @@ save_history_to_gcs(results_json, 'results_json')
 # with open("evaluation_results.json", "w") as json_file:
 #     json_file.write(results_json)
 
-
+bucket_name = 'experiment_results123'
 # Save the model locally
 mae_model.save_weights('my_model_weights_50.h5')
 upload_to_gcs(bucket_name, 'my_model_weights_50.h5', 'my_model_weights_50.h5')
