@@ -640,7 +640,7 @@ history = mae_model.fit(
 
 from google.cloud import storage
 
-DEST_FOLDER = "experiment4/"
+DEST_FOLDER = "experiment5/"
 
 def save_history_to_gcs(history_json, blob_name):
     # Set up the client
