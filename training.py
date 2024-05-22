@@ -628,7 +628,7 @@ mae_model.compile(
 )
 history = mae_model.fit(
     train_ds,
-    epochs=5,
+    epochs=2,
     validation_data=val_ds,
     callbacks=train_callbacks,
 )
@@ -659,6 +659,16 @@ def save_history_to_gcs(history_json, blob_name):
     print("Object saved to GCS")
 
 
+# Function to upload a file to GCS
+def upload_to_gcs(bucket_name, source_file_name, destination_blob_name):
+    """Uploads a file to the GCS bucket."""
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+    print(f"File {source_file_name} uploaded to {destination_blob_name}.")
+
+
 import json
 
 # Convert the history.history dict to JSON
@@ -686,3 +696,7 @@ save_history_to_gcs(results_json, 'results_json')
 # with open("evaluation_results.json", "w") as json_file:
 #     json_file.write(results_json)
 
+
+# Save the model locally
+mae_model.save_weights('my_model_weights_50.h5')
+upload_to_gcs(bucket_name, 'my_model_weights_50.h5', 'my_model_weights_50.h5')
