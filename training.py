@@ -640,6 +640,8 @@ history = mae_model.fit(
 
 from google.cloud import storage
 
+DEST_FOLDER = "experiment1/"
+
 def save_history_to_gcs(history_json, blob_name):
     # Set up the client
     client = storage.Client()
@@ -651,7 +653,7 @@ def save_history_to_gcs(history_json, blob_name):
     bucket = client.bucket(bucket_name)
     
     # Create a blob object for the file
-    blob = bucket.blob(blob_name)
+    blob = bucket.blob(DEST_FOLDER+blob_name)
     
     # Upload the JSON string
     blob.upload_from_string(history_json, content_type='application/json')
@@ -664,7 +666,7 @@ def upload_to_gcs(bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the GCS bucket."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
+    blob = bucket.blob(DEST_FOLDER+destination_blob_name)
     blob.upload_from_filename(source_file_name)
     print(f"File {source_file_name} uploaded to {destination_blob_name}.")
 
@@ -700,3 +702,95 @@ bucket_name = 'experiment_results123'
 # Save the model locally
 mae_model.save_weights('my_model_weights_50.h5')
 upload_to_gcs(bucket_name, 'my_model_weights_50.h5', 'my_model_weights_50.h5')
+
+
+
+## LINEAR PROBING
+
+# Extract the augmentation layers.
+train_augmentation_model = mae_model.train_augmentation_model
+test_augmentation_model = mae_model.test_augmentation_model
+
+# Extract the patchers.
+patch_layer = mae_model.patch_layer
+patch_encoder = mae_model.patch_encoder
+patch_encoder.downstream = True  # Swtich the downstream flag to True.
+
+# Extract the encoder.
+encoder = mae_model.encoder
+
+# Pack as a model.
+downstream_model = keras.Sequential(
+    [
+        layers.Input((IMAGE_SIZE, IMAGE_SIZE, 3)),
+        patch_layer,
+        patch_encoder,
+        encoder,
+        layers.BatchNormalization(),  # Refer to A.1 (Linear probing).
+        layers.GlobalAveragePooling1D(),
+        layers.Dense(NUM_CLASSES, activation="softmax"),
+    ],
+    name="linear_probe_model",
+)
+
+# Only the final classification layer of the `downstream_model` should be trainable.
+for layer in downstream_model.layers[:-1]:
+    layer.trainable = False
+
+downstream_model.summary()
+
+
+
+def prepare_data(images, labels, is_train=True):
+    if is_train:
+        augmentation_model = train_augmentation_model
+    else:
+        augmentation_model = test_augmentation_model
+
+    dataset = tf.data.Dataset.from_tensor_slices((images, labels))
+    if is_train:
+        dataset = dataset.shuffle(BUFFER_SIZE)
+
+    dataset = dataset.batch(BATCH_SIZE).map(
+        lambda x, y: (augmentation_model(x), y), num_parallel_calls=AUTO
+    )
+    return dataset.prefetch(AUTO)
+
+
+train_ds = prepare_data(x_train, y_train)
+val_ds = prepare_data(x_train, y_train, is_train=False)
+test_ds = prepare_data(x_test, y_test, is_train=False)
+
+
+linear_probe_epochs = 5
+linear_prob_lr = 0.1
+warm_epoch_percentage = 0.1
+steps = int((len(x_train) // BATCH_SIZE) * linear_probe_epochs)
+
+warmup_steps = int(steps * warm_epoch_percentage)
+scheduled_lrs = WarmUpCosine(
+    learning_rate_base=linear_prob_lr,
+    total_steps=steps,
+    warmup_learning_rate=0.0,
+    warmup_steps=warmup_steps,
+)
+
+optimizer = keras.optimizers.SGD(learning_rate=scheduled_lrs, momentum=0.9)
+downstream_model.compile(
+    optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"]
+)
+history_ds = downstream_model.fit(train_ds, validation_data=val_ds, epochs=linear_probe_epochs)
+history_dict_ds = history.history
+history_json_ds = json.dumps(history_dict_ds)
+save_history_to_gcs(history_json_ds, 'history_ds.json')
+
+loss, accuracy = downstream_model.evaluate(test_ds)
+accuracy = round(accuracy * 100, 2)
+print(f"Accuracy on the test set: {accuracy}%.")
+
+# SAVE accuracy
+acc_dict = {"accuracy test set" : accuracy}
+acc_json = json.dumps(acc_dict, indent=4)
+save_history_to_gcs(acc_json, 'accuracy_json')
+
+
