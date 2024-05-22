@@ -39,7 +39,7 @@ LAYER_NORM_EPS = 1e-6
 ENC_PROJECTION_DIM = 128
 DEC_PROJECTION_DIM = 64
 ENC_NUM_HEADS = 4
-ENC_LAYERS = 6
+ENC_LAYERS = 8
 DEC_NUM_HEADS = 4
 DEC_LAYERS = (
     2  # The decoder is lightweight but should be reasonably deep for reconstruction.
@@ -628,7 +628,7 @@ mae_model.compile(
 )
 history = mae_model.fit(
     train_ds,
-    epochs=5,
+    epochs=EPOCHS,
     validation_data=val_ds,
     callbacks=train_callbacks,
 )
@@ -762,7 +762,7 @@ val_ds = prepare_data(x_train, y_train, is_train=False)
 test_ds = prepare_data(x_test, y_test, is_train=False)
 
 
-linear_probe_epochs = 5
+linear_probe_epochs = 50
 linear_prob_lr = 0.1
 warm_epoch_percentage = 0.1
 steps = int((len(x_train) // BATCH_SIZE) * linear_probe_epochs)
