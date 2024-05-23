@@ -299,12 +299,9 @@ from torch.utils.data import DataLoader, Subset, random_split
 # from model_mae_timm import *
 import io
 
-# Assuming the filename of your key is 'service-account-file.json'
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'dt2119-lab3-422421-d62072692aa2.json'
-
 from google.cloud import storage
 
-BUCKET_NAME = 'mae-exp'
+BUCKET_NAME = 'experiment_results123'
 
 
 def tensor_to_image(tensor):
