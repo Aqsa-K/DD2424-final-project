@@ -58,7 +58,7 @@ LAYER_NORM_EPS = 1e-6
 train_dataloader, test_dataloader, train_set, test_set = prepare_data_cifar(DATA_DIR, INPUT_SHAPE, IMAGE_SIZE, BATCH_SIZE)
 
 
-def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=6):
+def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=4):
     # for now the input only takes mask_ratio and decoder_depth.
     # for more experiments coming remember to also chang the name for model path, history name and so on.
 
@@ -85,8 +85,6 @@ def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=6):
         os.makedirs(model_path_pre)
     model_name = f'mae_pretrain_maskratio_{mask_ratio}_dec_depth_{decoder_depth}.pt'
     model_path = os.path.join(model_path_pre, model_name)
-    # the model path should be a model folder that contain all the weights from the pretrained model
-    # Moving on to do the classification task, we will load the model from this folder, and use Vit_Classfiier to do the classification task.
 
     image_path = experiment_name + '/images'
 
@@ -127,32 +125,34 @@ def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=6):
             image_buffer = io.BytesIO()
             image.save(image_buffer, format='JPEG')
             image_buffer.seek(0)
-            upload_blob_from_memory(image_buffer, image_path + f'epoch_{e}.jpg', 'image/jpeg')
+            # upload_blob_from_memory(image_buffer, image_path + f'epoch_{e}.jpg', 'image/jpeg')
             # this saves the image to the bucket, inside a folder.
 
         ''' save '''
         torch.save(model, model_path)
 
     history_json = json.dumps(history)
-    save_history_to_gcs(history_json, experiment_name)
+    # save_history_to_gcs(history_json, experiment_name)
 
 
-# here is where I do the pretraining.
+if __name__ == '__main__':
+    # here is where I do the pretraining.
 
-mask_ratios = [0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85]
-decoder_depths = [2, 4, 6, 8]
+    # mask_ratios = [0.3, 0.5, 0.75, 0.85]
+    # decoder_depths = [2, 4, 6, 8]
+    mask_ratios = [0.75]
 
-for mask_ratio in mask_ratios:
-    experiment_name = f'pretrain_mask_ratio_{mask_ratio}_decoder_depth_6'
-    pre_train(experiment_name, mask_ratio)
-    print(f'Experiment {experiment_name} is done!')
-    print('-----------------------------------------------')
+    for mask_ratio in mask_ratios:
+        experiment_name = f'e_{EPOCHS}_pretrain_mask_ratio_{mask_ratio}_decoder_depth_4'
+        pre_train(experiment_name, mask_ratio)
+        print(f'Experiment {experiment_name} is done!')
+        print('-----------------------------------------------')
 
-for decoder_depth in decoder_depths:
-    experiment_name = f'pretrain_mask_ratio_0.75_decoder_depth_{decoder_depth}'
-    pre_train(experiment_name, 0.75, decoder_depth)
-    print(f'Experiment {experiment_name} is done!')
-    print('-----------------------------------------------')
+    # for decoder_depth in decoder_depths:
+    #     experiment_name = f'pretrain_mask_ratio_0.75_decoder_depth_{decoder_depth}'
+    #     pre_train(experiment_name, 0.75, decoder_depth)
+    #     print(f'Experiment {experiment_name} is done!')
+    #     print('-----------------------------------------------')
 
 
 
