@@ -511,7 +511,7 @@ if __name__ == '__main__':
     # here is where I do the pretraining.
     
     mask_ratios = [0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85]
-    decoder_depths = [2, 4, 6, 8]
+    decoder_depths = [4, 6, 8]
     
     # for mask_ratio in mask_ratios:
     #     experiment_name = f'pretrain_mask_ratio_{mask_ratio}_decoder_depth_6'
