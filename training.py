@@ -2,6 +2,10 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader, Subset, random_split
 
+import torch
+torch.cuda.empty_cache()
+
+
 
 def get_train_transforms(input_shape, image_size):
     return transforms.Compose([
