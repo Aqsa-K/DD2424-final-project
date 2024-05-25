@@ -305,7 +305,7 @@ import io
 
 from google.cloud import storage
 
-BUCKET_NAME = 'experiment_results123'
+BUCKET_NAME = 'mae-exp2'
 
 
 def tensor_to_image(tensor):
