@@ -59,3 +59,12 @@ def setup_seed(seed=42):
     np.random.seed(seed)
     random.seed(seed)
     torch.backends.cudnn.deterministic = True
+
+
+def download_model_from_gcs(bucket_name, source_blob_name, destination_file_name):
+    """Downloads a blob from the bucket."""
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
+    print(f"Downloaded {source_blob_name} from bucket {bucket_name} to {destination_file_name}.")
