@@ -54,6 +54,8 @@ MASK_PROPORTION = 0.75
 # Encoder and Decoder parameters
 LAYER_NORM_EPS = 1e-6
 
+BUCKET_NAME = "experiments123"
+
 
 train_dataloader, test_dataloader, train_set, test_set = prepare_data_cifar(DATA_DIR, INPUT_SHAPE, IMAGE_SIZE, BATCH_SIZE)
 
@@ -64,6 +66,11 @@ def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=4):
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = MAE_ViT(decoder_layer=decoder_depth, mask_ratio=mask_ratio)
+
+    model_load_path = f'modelmae_pretrain_maskratio_0.75_dec_depth_{decoder_depth}.pt'
+    model = torch.load(model_load_path, map_location='cpu')
+
+    
     if torch.cuda.device_count() > 1:
         print(f"Use {torch.cuda.device_count()} GPUs.")
         model = nn.DataParallel(model)
@@ -130,9 +137,10 @@ def pre_train(experiment_name, mask_ratio=0.75, decoder_depth=4):
 
         ''' save '''
         torch.save(model, model_path)
+        upload_to_gcs(BUCKET_NAME, model_path, model_name)
 
     history_json = json.dumps(history)
-    # save_history_to_gcs(history_json, experiment_name)
+    save_history_to_gcs(history_json, experiment_name)
 
 
 if __name__ == '__main__':
